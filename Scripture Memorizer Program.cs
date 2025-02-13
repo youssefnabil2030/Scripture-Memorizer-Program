@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
+using System.IO;
 
 class Program
 {
     static void Main()
     {
-        Scripture scripture = new Scripture(new Reference("Proverbs", 3, 5, 6), "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.");
+        // Load scriptures from a file for extended functionality
+        List<Scripture> scriptures = LoadScripturesFromFile("scriptures.txt");
+        Random random = new Random();
+        Scripture scripture = scriptures[random.Next(scriptures.Count)];
 
         while (!scripture.IsFullyHidden())
         {
@@ -25,6 +28,24 @@ class Program
         Console.WriteLine(scripture.GetDisplayText());
         Console.WriteLine("\nMemorization complete!");
     }
+
+    static List<Scripture> LoadScripturesFromFile(string filePath)
+    {
+        List<Scripture> scriptures = new List<Scripture>();
+        if (File.Exists(filePath))
+        {
+            string[] lines = File.ReadAllLines(filePath);
+            foreach (string line in lines)
+            {
+                string[] parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    scriptures.Add(new Scripture(new Reference(parts[0]), parts[1]));
+                }
+            }
+        }
+        return scriptures.Count > 0 ? scriptures : new List<Scripture> { new Scripture(new Reference("Proverbs 3:5-6"), "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.") };
+    }
 }
 
 class Reference
@@ -34,12 +55,13 @@ class Reference
     public int StartVerse { get; }
     public int? EndVerse { get; }
 
-    public Reference(string book, int chapter, int startVerse, int? endVerse = null)
+    public Reference(string reference)
     {
-        Book = book;
-        Chapter = chapter;
-        StartVerse = startVerse;
-        EndVerse = endVerse;
+        var parts = reference.Split(new[] { ' ', ':' }, StringSplitOptions.RemoveEmptyEntries);
+        Book = parts[0];
+        Chapter = int.Parse(parts[1]);
+        StartVerse = int.Parse(parts[2]);
+        EndVerse = parts.Length > 3 ? int.Parse(parts[3]) : (int?)null;
     }
 
     public override string ToString()
@@ -52,7 +74,7 @@ class Scripture
 {
     private Reference Reference { get; }
     private List<Word> Words { get; }
-    private Random random = new Random();
+    private static Random random = new Random();
 
     public Scripture(Reference reference, string text)
     {
@@ -68,8 +90,8 @@ class Scripture
     public void HideWords(int count)
     {
         List<Word> visibleWords = Words.Where(word => !word.IsHidden).ToList();
-        
-        for (int i = 0; i < count && visibleWords.Count > 0; i++)
+        int wordsToHide = Math.Min(count, visibleWords.Count);
+        for (int i = 0; i < wordsToHide; i++)
         {
             int index = random.Next(visibleWords.Count);
             visibleWords[index].Hide();
